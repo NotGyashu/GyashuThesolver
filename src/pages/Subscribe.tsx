@@ -1,4 +1,12 @@
- from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, Mail, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
+import Navigation from '@/components/Navigation';
 
 const topics = [
   { id: 1, name: 'Machine Learning', icon: '🧠', description: 'ML algorithms, neural networks, and model developments' },

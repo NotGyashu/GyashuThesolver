@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation';
+import SlackIntegration from '@/components/SlackIntegration';
 import { Settings, Clock, Globe, Mail, CheckCircle, AlertCircle } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -35,6 +36,7 @@ const Preferences = () => {
   
   const [email, setEmail] = useState(emailParam || emailFromQuery || '');
   const [showForm, setShowForm] = useState(!!emailParam || !!emailFromQuery);
+  const [showSlackIntegration, setShowSlackIntegration] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -112,6 +114,7 @@ const Preferences = () => {
       
       setStatus('success');
       setMessage('Preferences updated successfully! 🎉');
+      setShowSlackIntegration(true);
       
     } catch (error) {
       setStatus('error');
@@ -318,6 +321,17 @@ const Preferences = () => {
                     {message}
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Slack Integration - Show after successful preferences save */}
+              {showSlackIntegration && status === 'success' && (
+                <SlackIntegration 
+                  userEmail={email} 
+                  onIntegrationComplete={() => {
+                    // Optional: Handle completion
+                    console.log('Slack integration completed');
+                  }}
+                />
               )}
 
               {/* Submit Button */}
