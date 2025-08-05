@@ -214,6 +214,54 @@ def get_topics():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@main.route('/api/stats')
+def get_stats():
+    """Get dashboard statistics"""
+    try:
+        from datetime import datetime, timedelta
+        
+        # Get actual counts from database
+        total_subscribers = User.query.filter_by(is_active=True).count()
+        total_topics = Topic.query.filter_by(is_active=True).count()
+        
+        # Get articles from today
+        today = datetime.utcnow().date()
+        today_start = datetime.combine(today, datetime.min.time())
+        today_end = datetime.combine(today, datetime.max.time())
+        daily_articles = NewsArticle.query.filter(
+            NewsArticle.date_fetched >= today_start,
+            NewsArticle.date_fetched <= today_end
+        ).count()
+        
+        # Get recent articles
+        recent_articles = NewsArticle.query.order_by(NewsArticle.date_fetched.desc()).limit(3).all()
+        
+        # Format articles for frontend
+        articles_data = []
+        for article in recent_articles:
+            articles_data.append({
+                'id': article.id,
+                'title': article.title,
+                'description': article.description or article.summary if hasattr(article, 'summary') else article.description,
+                'url': article.url,
+                'source': article.source,
+                'published_at': article.published_at.isoformat() if article.published_at else None,
+                'topic_name': article.topic.name if article.topic else None,
+                'category': article.topic.name if article.topic else 'General'
+            })
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_subscribers': total_subscribers,
+                'total_topics': total_topics,
+                'daily_articles': daily_articles,
+                'recent_articles': articles_data
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @main.route('/test-send-now')
 def test_send_now():
     """Manual test email sending"""

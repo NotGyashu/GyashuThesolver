@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 interface HomeStats {
   total_subscribers: number;
   total_topics: number;
+  daily_articles: number;
   recent_articles: Array<{
     id: number;
     title: string;
@@ -27,52 +28,45 @@ const Home = () => {
   const [stats, setStats] = useState<HomeStats>({
     total_subscribers: 0,
     total_topics: 0,
+    daily_articles: 0,
     recent_articles: []
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, fetch from your Flask API
-    // For now, using mock data
-    setTimeout(() => {
-      setStats({
-        total_subscribers: 1247,
-        total_topics: 8,
-        recent_articles: [
-          {
-            id: 1,
-            title: "GPT-5 Breakthrough: New Reasoning Capabilities Unveiled",
-            description: "OpenAI announces major advances in language model reasoning, setting new benchmarks in mathematical and scientific problem-solving.",
-            url: "#",
-            source: "OpenAI Blog",
-            published_at: "2024-08-05T10:30:00Z",
-            topic_name: "Natural Language Processing",
-            category: "AI Research"
-          },
-          {
-            id: 2,
-            title: "AI-Powered Medical Diagnosis Achieves 99% Accuracy",
-            description: "New computer vision model outperforms radiologists in detecting early-stage cancer from medical imaging.",
-            url: "#",
-            source: "Nature Medicine",
-            published_at: "2024-08-05T08:15:00Z",
-            topic_name: "Computer Vision",
-            category: "Healthcare AI"
-          },
-          {
-            id: 3,
-            title: "Meta Releases Open-Source Robotics Framework",
-            description: "New framework democratizes robot training with advanced simulation environments and real-world transfer learning.",
-            url: "#",
-            source: "Meta Research",
-            published_at: "2024-08-04T16:45:00Z",
-            topic_name: "Robotics & Automation",
-            category: "Open Source"
-          }
-        ]
-      });
-      setLoading(false);
-    }, 1000);
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          setStats(data.stats);
+        } else {
+          console.error('Failed to fetch stats:', data.error);
+          // Fallback to basic stats if API fails
+          setStats({
+            total_subscribers: 0,
+            total_topics: 0,
+            daily_articles: 0,
+            recent_articles: []
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        // Fallback to basic stats if API fails
+        setStats({
+          total_subscribers: 0,
+          total_topics: 0,
+          daily_articles: 0,
+          recent_articles: []
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
   }, []);
 
   return (
@@ -136,7 +130,7 @@ const Home = () => {
             <StatsCard
               icon={<TrendingUp className="w-6 h-6" />}
               title="Daily Articles"
-              value="15+"
+              value={loading ? "..." : stats.daily_articles.toString()}
               description="Curated stories delivered daily"
               color="green"
             />
@@ -158,7 +152,12 @@ const Home = () => {
             {stats.recent_articles.map((article, index) => (
               <ArticleCard
                 key={article.id}
-                article={article}
+                title={article.title}
+                description={article.description}
+                url={article.url}
+                source={article.source}
+                published_at={article.published_at}
+                category={article.category}
                 className="animate-scale-in"
                 style={{ animationDelay: `${index * 0.1}s` }}
               />
