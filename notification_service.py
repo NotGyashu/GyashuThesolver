@@ -142,10 +142,15 @@ class NotificationService:
             "unfurl_media": False
         }
     
-    def send_slack_notification(self, webhook_url, articles, user_email, channel_name=""):
-        """Send notification to Slack"""
+    def send_slack_notification(self, webhook_url, articles=None, user_email="", channel_name="", custom_payload=None):
+        """Send notification to Slack - can send articles or custom payload"""
         try:
-            payload = self.format_articles_for_slack(articles, user_email)
+            if custom_payload:
+                # Send custom payload directly (for test messages)
+                payload = custom_payload
+            else:
+                # Format articles for regular notification
+                payload = self.format_articles_for_slack(articles, user_email)
             
             print(f"📤 Sending Slack notification to {channel_name or 'webhook'}...")
             
@@ -160,24 +165,24 @@ class NotificationService:
             
             if response.text.strip() == "ok":
                 print(f"✅ Slack notification sent successfully to {channel_name}!")
-                return True, "Notification sent successfully"
+                return True
             else:
                 error_msg = f"Slack API returned: {response.text}"
                 print(f"❌ {error_msg}")
-                return False, error_msg
+                return False
             
         except requests.exceptions.Timeout:
             error_msg = "Slack webhook request timed out"
             print(f"❌ {error_msg}")
-            return False, error_msg
+            return False
         except requests.exceptions.RequestException as e:
             error_msg = f"Slack webhook request failed: {str(e)}"
             print(f"❌ {error_msg}")
-            return False, error_msg
+            return False
         except Exception as e:
             error_msg = f"Unexpected error sending Slack notification: {str(e)}"
             print(f"❌ {error_msg}")
-            return False, error_msg
+            return False
     
     def send_notifications_to_user(self, user, articles):
         """Send notifications to all active channels for a user"""

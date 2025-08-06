@@ -136,7 +136,16 @@ def update_preferences():
         db.session.commit()
         flash('Preferences updated successfully! 🎉', 'success')
         
-        return render_template('preferences_success.html', user=user)
+        # Check if it's an API request (JSON) or form submission
+        if request.content_type and 'application/json' in request.content_type:
+            return jsonify({
+                'success': True,
+                'message': 'Preferences updated successfully! 🎉',
+                'user': user.to_dict()
+            })
+        else:
+            # For form submissions, redirect to preferences page with success message
+            return redirect(url_for('main.preferences_form', email=email))
         
     except Exception as e:
         db.session.rollback()
@@ -187,6 +196,7 @@ def preview_email():
                          preview_date=datetime.now().strftime('%A, %B %d, %Y'))
 
 # API Routes
+# API Routes
 @main.route('/api/user/<email>')
 def get_user_info(email):
     """Get user information via API"""
@@ -201,6 +211,123 @@ def get_user_info(email):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@main.route('/api/topics')
+def get_topics_api():
+    """Get all active topics via API"""
+    topics = Topic.query.filter_by(is_active=True).all()
+    return jsonify({
+        'topics': [topic.to_dict() for topic in topics]
+    })
+
+@main.route('/api/slack/test', methods=['POST'])
+def test_slack_webhook():
+    """Test Slack webhook by sending a test message"""
+    try:
+        data = request.get_json()
+        webhook_url = data.get('webhook_url')
+        channel_name = data.get('channel_name', '#ai-news')
+        
+        if not webhook_url:
+            return jsonify({'error': 'Webhook URL is required'}), 400
+        
+        # Import the notification service here to avoid circular imports
+        from notification_service import NotificationService
+        notification_service = NotificationService()
+        
+        # Send test message
+        test_message = {
+            "text": "🎉 AI News Slack Integration Test",
+            "blocks": [
+                {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "🎉 AI News Integration Successful!"
+                    }
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"Great! Your AI news will now be delivered to *{channel_name}* 📬\n\nYou'll receive daily curated AI articles with AI-powered summaries!"
+                    }
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": "🤖 _This is a test message from your AI News service_"
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        success = notification_service.send_slack_notification(webhook_url, custom_payload=test_message)
+        
+        if success:
+            return jsonify({'message': 'Test message sent successfully'})
+        else:
+            return jsonify({'error': 'Failed to send test message'}), 400
+            
+    except Exception as e:
+        print(f"Error testing Slack webhook: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@main.route('/api/notifications/setup', methods=['POST'])
+def setup_notification_channel():
+    """Setup notification channel for user"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        channel_type = data.get('channel_type')
+        webhook_url = data.get('webhook_url')
+        channel_name = data.get('channel_name')
+        enabled = data.get('enabled', True)
+        
+        if not email or not channel_type or not webhook_url:
+            return jsonify({'error': 'Email, channel_type, and webhook_url are required'}), 400
+        
+        # Find user
+        user = User.query.filter_by(email=email.lower()).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if notification channel already exists
+        existing_channel = NotificationChannel.query.filter_by(
+            user_id=user.id, 
+            channel_type=channel_type
+        ).first()
+        
+        if existing_channel:
+            # Update existing channel
+            existing_channel.webhook_url = webhook_url
+            existing_channel.channel_name = channel_name
+            existing_channel.is_active = enabled
+        else:
+            # Create new channel
+            channel = NotificationChannel(
+                user_id=user.id,
+                channel_type=channel_type,
+                webhook_url=webhook_url,
+                channel_name=channel_name,
+                is_active=enabled
+            )
+            db.session.add(channel)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{channel_type.title()} integration saved successfully',
+            'channel': existing_channel.to_dict() if existing_channel else channel.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error setting up notification channel: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @main.route('/api/topics')
 def get_topics():
@@ -219,6 +346,7 @@ def get_stats():
     """Get dashboard statistics"""
     try:
         from datetime import datetime, timedelta
+        from sqlalchemy import func
         
         # Get actual counts from database
         total_subscribers = User.query.filter_by(is_active=True).count()
@@ -232,6 +360,10 @@ def get_stats():
             NewsArticle.date_fetched >= today_start,
             NewsArticle.date_fetched <= today_end
         ).count()
+        
+        # Get average articles per user based on user preferences
+        avg_articles_result = db.session.query(func.avg(User.max_articles)).filter_by(is_active=True).scalar()
+        avg_articles_per_user = int(avg_articles_result) if avg_articles_result else 5
         
         # Get recent articles
         recent_articles = NewsArticle.query.order_by(NewsArticle.date_fetched.desc()).limit(3).all()
@@ -256,11 +388,61 @@ def get_stats():
                 'total_subscribers': total_subscribers,
                 'total_topics': total_topics,
                 'daily_articles': daily_articles,
+                'avg_articles_per_user': avg_articles_per_user,
                 'recent_articles': articles_data
             }
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@main.route('/api/subscribe', methods=['POST'])
+def api_subscribe():
+    """API endpoint for user subscription"""
+    try:
+        # Get JSON data or form data
+        if request.is_json:
+            data = request.get_json()
+            email = data.get('email', '').strip().lower()
+        else:
+            email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            return jsonify({'success': False, 'error': 'Please enter an email address.'}), 400
+        
+        if not validate_email(email):
+            return jsonify({'success': False, 'error': 'Please enter a valid email address.'}), 400
+        
+        existing_user = User.query.filter_by(email=email).first()
+        
+        if existing_user:
+            if existing_user.is_active:
+                return jsonify({
+                    'success': True, 
+                    'message': 'This email is already subscribed!',
+                    'redirect_url': f'/preferences/{email}'
+                })
+            else:
+                existing_user.is_active = True
+                existing_user.date_subscribed = datetime.utcnow()
+                db.session.commit()
+                return jsonify({
+                    'success': True,
+                    'message': 'Welcome back! Your subscription has been reactivated.',
+                    'redirect_url': f'/preferences/{email}'
+                })
+        else:
+            new_user = User(email=email)
+            db.session.add(new_user)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Successfully subscribed! Now customize your preferences.',
+                'redirect_url': f'/preferences/{email}'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'An error occurred. Please try again later.'}), 500
 
 @main.route('/test-send-now')
 def test_send_now():
@@ -531,3 +713,23 @@ def delete_notification_channel(channel_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@main.route("/api/test/trigger-emails", methods=["POST"])
+def trigger_test_emails():
+    """Manual trigger for testing email sending (admin only)"""
+    try:
+        from scheduler_service import send_daily_news
+        from app import app
+        
+        # Run the email sending function
+        send_daily_news(app)
+        
+        return jsonify({
+            "success": True,
+            "message": "Email sending triggered manually"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+

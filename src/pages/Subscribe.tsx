@@ -44,24 +44,33 @@ const Subscribe = () => {
     setLoading(true);
     
     try {
-      // In a real app, this would call your Flask API
-      // const response = await fetch('/subscribe', { method: 'POST', ... });
+      // Call the Flask API
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const data = await response.json();
       
-      setStatus('success');
-      setMessage('Successfully subscribed! Redirecting to preferences...');
-      
-      // Simulate redirect to preferences
-      setTimeout(() => {
-        // In real app: window.location.href = `/preferences/${email}`;
-        console.log(`Would redirect to preferences for ${email}`);
-      }, 2000);
+      if (data.success) {
+        setStatus('success');
+        setMessage(data.message);
+        
+        // Redirect to preferences page
+        setTimeout(() => {
+          window.location.href = data.redirect_url;
+        }, 2000);
+      } else {
+        setStatus('error');
+        setMessage(data.error || 'An error occurred. Please try again later.');
+      }
       
     } catch (error) {
       setStatus('error');
-      setMessage('An error occurred. Please try again later.');
+      setMessage('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

@@ -52,10 +52,34 @@ const Preferences = () => {
 
   useEffect(() => {
     if (email) {
-      // In real app, fetch user preferences
-      // fetchUserPreferences(email);
+      // Fetch user preferences from backend
+      fetchUserPreferences(email);
     }
   }, [email]);
+
+  const fetchUserPreferences = async (userEmail: string) => {
+    try {
+      const response = await fetch(`/api/user/${encodeURIComponent(userEmail)}`);
+      if (response.ok) {
+        const data = await response.json();
+        const user = data.user;
+        
+        // Update preferences state with fetched data
+        setPreferences(prev => ({
+          ...prev,
+          preferredTime: user.preferred_time || '10:00',
+          timezone: user.timezone || 'Asia/Kolkata',
+          frequency: user.frequency || 'daily',
+          maxArticles: user.max_articles || 5,
+          selectedTopics: user.preferences ? user.preferences.map((p: any) => p.topic_id) : [],
+          topicPriorities: user.preferences ? 
+            user.preferences.reduce((acc: any, p: any) => ({ ...acc, [p.topic_id]: p.priority }), {}) : {}
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+    }
+  };
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,10 +131,28 @@ const Preferences = () => {
     setLoading(true);
     
     try {
-      // In real app, submit to Flask API
-      // const response = await fetch('/update-preferences', { method: 'POST', ... });
+      // Create FormData to match backend expectations
+      const formData = new FormData();
+      formData.append('email', email);
+      formData.append('preferred_time', preferences.preferredTime);
+      formData.append('timezone', preferences.timezone);
+      formData.append('frequency', preferences.frequency);
+      formData.append('max_articles', preferences.maxArticles.toString());
       
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Add selected topics
+      preferences.selectedTopics.forEach(topicId => {
+        formData.append('topics', topicId.toString());
+        formData.append(`priority_${topicId}`, (preferences.topicPriorities[topicId] || 1).toString());
+      });
+      
+      const response = await fetch('/update-preferences', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update preferences');
+      }
       
       setStatus('success');
       setMessage('Preferences updated successfully! 🎉');

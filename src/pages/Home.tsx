@@ -12,6 +12,7 @@ interface HomeStats {
   total_subscribers: number;
   total_topics: number;
   daily_articles: number;
+  avg_articles_per_user: number;
   recent_articles: Array<{
     id: number;
     title: string;
@@ -29,6 +30,7 @@ const Home = () => {
     total_subscribers: 0,
     total_topics: 0,
     daily_articles: 0,
+    avg_articles_per_user: 5,
     recent_articles: []
   });
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,8 @@ const Home = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/stats');
+        // Add timestamp to prevent caching
+        const response = await fetch(`/api/stats?t=${Date.now()}`);
         const data = await response.json();
         
         if (data.success) {
@@ -49,6 +52,7 @@ const Home = () => {
             total_subscribers: 0,
             total_topics: 0,
             daily_articles: 0,
+            avg_articles_per_user: 5,
             recent_articles: []
           });
         }
@@ -59,6 +63,7 @@ const Home = () => {
           total_subscribers: 0,
           total_topics: 0,
           daily_articles: 0,
+          avg_articles_per_user: 5,
           recent_articles: []
         });
       } finally {
@@ -67,6 +72,11 @@ const Home = () => {
     };
 
     fetchStats();
+    
+    // Refresh stats every 30 seconds to show real-time updates
+    const interval = setInterval(fetchStats, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -127,11 +137,11 @@ const Home = () => {
               description="Specialized AI domains covered"
               color="teal"
             />
-            <StatsCard
+                        <StatsCard
               icon={<TrendingUp className="w-6 h-6" />}
-              title="Daily Articles"
-              value={loading ? "..." : stats.daily_articles.toString()}
-              description="Curated stories delivered daily"
+              title="Avg Articles/User"
+              value={loading ? "..." : `${stats.avg_articles_per_user}`}
+              description="Articles per email based on user preferences"
               color="green"
             />
           </div>
@@ -150,17 +160,16 @@ const Home = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {stats.recent_articles.map((article, index) => (
-              <ArticleCard
-                key={article.id}
-                title={article.title}
-                description={article.description}
-                url={article.url}
-                source={article.source}
-                published_at={article.published_at}
-                category={article.category}
-                className="animate-scale-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              />
+                              <ArticleCard
+                  key={article.id}
+                  title={article.title}
+                  description={article.description}
+                  url={article.url}
+                  source={article.source}
+                  published_at={article.published_at || ''}
+                  category={article.category}
+                  className="opacity-0 animate-fade-in-up"
+                />
             ))}
           </div>
           

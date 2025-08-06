@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI News Daily - {{ current_date }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 25px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .header p {
+            margin: 8px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        .content {
+            padding: 30px 25px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 25px;
+            color: #2d3748;
+        }
+        .article {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #fefefe;
+            transition: box-shadow 0.2s ease;
+        }
+        .article:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .article-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+            line-height: 1.3;
+        }
+        .article-title a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .article-title a:hover {
+            text-decoration: underline;
+        }
+        .article-meta {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .article-source {
+            background-color: #edf2f7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .article-description {
+            color: #4a5568;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        .article-summary {
+            background-color: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 0 4px 4px 0;
+        }
+        .article-summary h4 {
+            margin: 0 0 8px 0;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .read-more {
+            display: inline-block;
+            background-color: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+        .read-more:hover {
+            background-color: #5a67d8;
+        }
+        .footer {
+            background-color: #2d3748;
+            color: white;
+            padding: 25px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #81e6d9;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .unsubscribe {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #4a5568;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        .stats {
+            background-color: #edf2f7;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stats h3 {
+            margin: 0 0 10px 0;
+            color: #2d3748;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .header, .content, .footer {
+                padding: 20px 15px;
+            }
+            .article {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🤖 AI News Daily</h1>
+            <p>Your Personalized AI Intelligence Briefing</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="greeting">
+                <strong>Hello AI Enthusiast!</strong><br>
+                Here's your curated AI news digest for {{ current_date }}
+            </div>
+
+            <!-- Stats Section -->
+            {% if articles %}
+            <div class="stats">
+                <h3>📊 Today's Digest</h3>
+                <p><strong>{{ articles|length }}</strong> carefully curated articles • Powered by AI summarization</p>
+            </div>
+            {% endif %}
+
+            <!-- Articles -->
+            {% if articles %}
+                {% for article in articles %}
+                <div class="article">
+                    <div class="article-title">
+                        <a href="{{ article.url }}" target="_blank">{{ article.title }}</a>
+                    </div>
+                    
+                    <div class="article-meta">
+                        <span class="article-source">{{ article.source or 'AI News' }}</span>
+                        {% if article.published_at %}
+                        <span>📅 {{ article.published_at[:10] }}</span>
+                        {% endif %}
+                        {% if article.topic_name %}
+                        <span>🏷️ {{ article.topic_name }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="article-description">
+                        {{ article.description[:200] }}{% if article.description|length > 200 %}...{% endif %}
+                    </div>
+
+                    {% if article.ai_summary %}
+                    <div class="article-summary">
+                        <h4>🤖 AI Summary</h4>
+                        <p>{{ article.ai_summary }}</p>
+                    </div>
+                    {% endif %}
+
+                    <a href="{{ article.url }}" target="_blank" class="read-more">
+                        Read Full Article →
+                    </a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="article">
+                    <div class="article-title">No articles available today</div>
+                    <div class="article-description">
+                        We're working hard to bring you the latest AI news. Check back tomorrow for fresh updates!
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Call to Action -->
+            <div style="text-align: center; margin-top: 30px; padding: 20px; background-color: #f7fafc; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; color: #2d3748;">💡 Want to customize your feed?</h3>
+                <p style="margin: 0 0 15px 0; color: #4a5568;">Update your preferences to receive news tailored to your interests.</p>
+                <a href="http://localhost:5000/preferences/{{ user_email }}" 
+                   style="display: inline-block; background-color: #48bb78; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                    Update Preferences
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>AI News Daily</strong> - Stay ahead in the AI revolution</p>
+            <p>
+                <a href="http://localhost:5000/">Visit Website</a> • 
+                <a href="http://localhost:5000/preferences/{{ user_email }}">Manage Preferences</a>
+            </p>
+            
+            <div class="unsubscribe">
+                <p>
+                    Receiving this because you subscribed to AI News Daily.<br>
+                    <a href="http://localhost:5000/unsubscribe/{{ user_email }}">Unsubscribe</a> or 
+                    <a href="http://localhost:5000/preferences/{{ user_email }}">update your preferences</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
