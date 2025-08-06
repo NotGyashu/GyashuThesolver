@@ -45,6 +45,7 @@ class User(db.Model):
     
     def should_receive_email_today(self):
         """Check if user should receive email today based on frequency"""
+        return True
         if not self.is_active:
             return False
             

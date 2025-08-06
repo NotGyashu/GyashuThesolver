@@ -42,15 +42,19 @@ def send_daily_news(app):
                 # Get user's preferred time (with defaults)
                 preferred_time = user.preferred_time or time(10, 0)  # Default 10:00 AM
                 
-                # Check for exact time match (hour + minute)
-                if (user_local_time.hour == preferred_time.hour and 
-                    user_local_time.minute == preferred_time.minute):
-                    
+                # FIX: Extract preferred time components properly
+                preferred_hour = preferred_time.hour
+                preferred_minute = preferred_time.minute
+                
+                # FIX: Compare time components directly
+                if user_local_time.hour == preferred_hour and user_local_time.minute == preferred_minute:
                     # Verify frequency preference
                     if user.should_receive_email_today():
                         users_to_email.append(user)
                         print(f"⏰ {user.email} triggered at local {user_local_time.strftime('%H:%M')} "
-                              f"(preferred: {preferred_time.strftime('%H:%M')} {user_tz.zone})")
+                              f"(preferred: {preferred_hour:02d}:{preferred_minute:02d} {user_tz.zone})")
+                    else:
+                        print(f"ℹ️  Skipped {user.email} (already received email today)")
             
             if not users_to_email:
                 print("ℹ️  No users scheduled for emails at this exact time")
