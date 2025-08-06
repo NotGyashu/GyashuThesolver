@@ -145,7 +145,7 @@ const Preferences = () => {
         formData.append(`priority_${topicId}`, (preferences.topicPriorities[topicId] || 1).toString());
       });
       
-      const response = await fetch('/update-preferences', {
+      const response = await fetch('/api/update-preferences', {
         method: 'POST',
         body: formData
       });

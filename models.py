@@ -10,12 +10,12 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     date_subscribed = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False,index=True)
     last_email_sent = db.Column(db.DateTime)
     
     # New fields for customization
     preferred_time = db.Column(db.Time, default=time(10, 0))  # Default 10:00 AM
-    timezone = db.Column(db.String(50), default='Asia/Kolkata')  # User's timezone
+    timezone = db.Column(db.String(50), default='Asia/Kolkata',index=True)  # User's timezone
     frequency = db.Column(db.String(20), default='daily')  # daily, weekly, monthly
     max_articles = db.Column(db.Integer, default=5)  # Max articles per email
     
@@ -45,16 +45,22 @@ class User(db.Model):
     
     def should_receive_email_today(self):
         """Check if user should receive email today based on frequency"""
-        if not self.is_active or not self.last_email_sent:
+        if not self.is_active:
+            return False
+            
+        # If user has never received an email, they should receive one
+        if not self.last_email_sent:
             return True
         
+        # Calculate days since last email
+        days_since_last = (datetime.utcnow().date() - self.last_email_sent.date()).days
+        
         if self.frequency == 'daily':
-            return True
+            # Send daily if it's been at least 1 day since last email
+            return days_since_last >= 1
         elif self.frequency == 'weekly':
-            days_since_last = (datetime.utcnow() - self.last_email_sent).days
             return days_since_last >= 7
         elif self.frequency == 'monthly':
-            days_since_last = (datetime.utcnow() - self.last_email_sent).days
             return days_since_last >= 30
         
         return False

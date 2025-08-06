@@ -96,7 +96,7 @@ def preferences_form(email=None):
                          topics=topics, 
                          timezones=timezones)
 
-@main.route('/update-preferences', methods=['POST'])
+@main.route('/api/update-preferences', methods=['POST'])
 def update_preferences():
     """Update user preferences"""
     try:
@@ -104,8 +104,7 @@ def update_preferences():
         user = User.query.filter_by(email=email).first()
         
         if not user:
-            flash('User not found.', 'danger')
-            return redirect(url_for('main.subscribe'))
+            return jsonify({'success': False, 'error': 'User not found'}), 404
         
         # Update user settings
         preferred_time_str = request.form.get('preferred_time', '10:00')
@@ -134,24 +133,17 @@ def update_preferences():
             db.session.add(preference)
         
         db.session.commit()
-        flash('Preferences updated successfully! 🎉', 'success')
         
-        # Check if it's an API request (JSON) or form submission
-        if request.content_type and 'application/json' in request.content_type:
-            return jsonify({
-                'success': True,
-                'message': 'Preferences updated successfully! 🎉',
-                'user': user.to_dict()
-            })
-        else:
-            # For form submissions, redirect to preferences page with success message
-            return redirect(url_for('main.preferences_form', email=email))
+        return jsonify({
+            'success': True,
+            'message': 'Preferences updated successfully! 🎉',
+            'user': user.to_dict()
+        })
         
     except Exception as e:
         db.session.rollback()
-        flash('An error occurred while updating preferences.', 'danger')
         print(f"Preference update error: {e}")
-        return redirect(url_for('main.preferences_form', email=email))
+        return jsonify({'success': False, 'error': 'An error occurred while updating preferences.'}), 500
 
 @main.route('/unsubscribe/<email>')
 def unsubscribe(email):

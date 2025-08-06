@@ -2,11 +2,11 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
-from datetime import datetime
+from datetime import datetime, time
 import atexit
 
 def send_daily_news(app):
-    """Function to send daily news to users based on their preferred time"""
+    """Function to send daily news to users based on their preferred time and timezone"""
     with app.app_context():
         try:
             # Import inside function to avoid circular imports
@@ -16,8 +16,8 @@ def send_daily_news(app):
             from email_service import send_news_email
             from notification_service import NotificationService
             
-            current_time = datetime.now()
-            print(f"📅 Checking for emails to send at {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            current_utc_time = datetime.now(pytz.UTC)
+            print(f"📅 Checking for emails to send at {current_utc_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             
             # Get all active users
             all_users = User.query.filter_by(is_active=True).all()
@@ -26,25 +26,34 @@ def send_daily_news(app):
                 print("ℹ️  No active subscribers found")
                 return
             
-            # Filter users who should receive emails at this time
+            # Filter users who should receive emails at this exact time
             users_to_email = []
             for user in all_users:
-                user_tz = pytz.timezone(user.timezone or 'Asia/Kolkata')
-                current_user_time = current_time.astimezone(user_tz)
-                user_preferred_hour = user.preferred_time.hour if user.preferred_time else 10
-                user_preferred_minute = user.preferred_time.minute if user.preferred_time else 0
+                # Handle invalid timezones
+                try:
+                    user_tz = pytz.timezone(user.timezone)
+                except pytz.UnknownTimeZoneError:
+                    user_tz = pytz.timezone('Asia/Kolkata')  # Default to IST
+                    print(f"⚠️  Invalid timezone '{user.timezone}' for {user.email}, using Asia/Kolkata")
                 
-                # Check if current time matches user's preferred time (within the hour)
-                if (current_user_time.hour == user_preferred_hour and 
-                    0 <= current_user_time.minute <= 59):
+                # Convert UTC to user's local time
+                user_local_time = current_utc_time.astimezone(user_tz)
+                
+                # Get user's preferred time (with defaults)
+                preferred_time = user.preferred_time or time(10, 0)  # Default 10:00 AM
+                
+                # Check for exact time match (hour + minute)
+                if (user_local_time.hour == preferred_time.hour and 
+                    user_local_time.minute == preferred_time.minute):
                     
-                    # Check if user should receive email today (based on frequency)
+                    # Verify frequency preference
                     if user.should_receive_email_today():
                         users_to_email.append(user)
-                        print(f"� {user.email} scheduled for email (preferred time: {user_preferred_hour:02d}:{user_preferred_minute:02d} {user.timezone})")
+                        print(f"⏰ {user.email} triggered at local {user_local_time.strftime('%H:%M')} "
+                              f"(preferred: {preferred_time.strftime('%H:%M')} {user_tz.zone})")
             
             if not users_to_email:
-                print("ℹ️  No users scheduled for emails at this time")
+                print("ℹ️  No users scheduled for emails at this exact time")
                 return
             
             print(f"👥 Found {len(users_to_email)} users to email out of {len(all_users)} total subscribers")
@@ -133,7 +142,7 @@ def send_daily_news(app):
                 print(f"❌ Error committing to database: {e}")
                 db.session.rollback()
             
-            print(f"📊 Email job completed at {datetime.now()}:")
+            print(f"📊 Email job completed at {datetime.utcnow()}:")
             print(f"   ✅ Successful sends: {successful_sends}")
             print(f"   ❌ Failed sends: {failed_sends}")
             print(f"   📰 Articles sent: {len(news_articles)}")
@@ -154,14 +163,15 @@ def start_scheduler(app):
         scheduler = BackgroundScheduler(daemon=True)
         
         print("🚀 STARTING PRODUCTION MODE - Emails sent at user-preferred times")
+        print("⏰ Scheduler runs every minute for exact time matching")
         
         # PRODUCTION MODE: Send emails based on user preferences
-        # We'll check every hour for users who should receive emails
+        # Check every minute for exact time matches
         scheduler.add_job(
             func=lambda: send_daily_news(app),
-            trigger=CronTrigger(minute=0),  # Every hour at minute 0
-            id='hourly_news_check',
-            name='Check for users who should receive news this hour',
+            trigger=CronTrigger(minute='*'),  # Every minute
+            id='minute_news_check',
+            name='Check for users every minute at exact preferred times',
             replace_existing=True,
             max_instances=1,
             coalesce=True
@@ -173,8 +183,8 @@ def start_scheduler(app):
         atexit.register(lambda: scheduler.shutdown())
         
         print("✅ Scheduler started successfully")
-        print("⏰ PRODUCTION MODE: News will be sent at user-preferred times")
-        print("📧 Default time: 10:00 AM IST for new users")
+        print("⏰ PRODUCTION MODE: News will be sent at exact user-preferred times")
+        print("🌍 Timezone-aware: Uses each user's configured timezone")
         print("📧 Make sure you have:")
         print("   1. Added your email via the website")
         print("   2. Configured EMAIL_USER and EMAIL_PASS in .env")
